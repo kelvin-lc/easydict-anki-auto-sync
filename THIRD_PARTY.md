@@ -1,0 +1,18 @@
+# Source attribution
+
+The Youdao V4 request algorithm and dictionary field mapping in
+`sync.py` are adapted from tisfeng/Easydict (GPL-3.0):
+
+- https://github.com/tisfeng/Easydict/blob/2.23.0/Easydict/Swift/Service/Youdao/YoudaoService%2BDict.swift
+- https://github.com/tisfeng/Easydict/blob/2.23.0/Easydict/Swift/Service/Youdao/EZQueryResult%2BDictV4.swift
+- Official Anki field organization: https://github.com/tisfeng/Easydict/pull/1241
+
+Original source copyright belongs to Easydict's authors and contributors.
+The adapted Python source is distributed under GPL-3.0; see
+`LICENSE-Easydict.txt`. This local modification adds automatic collection,
+queueing, cached enrichment, example sentences, and a custom Anki layout.
+It is not an official Easydict release or official card theme.
+
+Dictionary definitions, phonetics, and examples are retrieved from Youdao;
+their content is not covered by the source-code license. Cards link to the
+dictionary source. This implementation does not copy full dictionary pages.

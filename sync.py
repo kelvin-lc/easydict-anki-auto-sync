@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import urllib.parse
 
@@ -133,6 +134,8 @@ def enrich(db, now, call=None, fetch=dictionary_fields):
             call('updateNoteFields', note={'id': note_id, 'fields': fields})
             db.execute('UPDATE words SET enriched=1 WHERE word=?', (word,))
             logging.info('Enriched note %s', note_id)
+        except AnkiUnavailable:
+            raise
         except Exception as exc:
             db.execute('UPDATE words SET retry_at=? WHERE word=?', (now + 3600, word))
             logging.warning('Dictionary enrichment deferred for note %s: %s', note_id, exc)
@@ -180,6 +183,8 @@ def attach_audio(db, now, call=None, generate=make_audio):
                         raise ValueError('Invalid stored media filename')
                     call('updateNoteFields', note={'id': note_id, 'fields': {'Audio': f'[sound:{filename}]'}})
             db.execute('UPDATE words SET audio_done=1 WHERE word=?', (word,))
+        except AnkiUnavailable:
+            raise
         except Exception as exc:
             db.execute('UPDATE words SET audio_retry_at=? WHERE word=?', (now + 3600, word))
             logging.warning('Audio deferred for note %s: %s', note_id, exc)
@@ -223,13 +228,21 @@ def collect(db, records, now):
     db.commit()
 
 
+class AnkiUnavailable(ConnectionError):
+    """Anki closed or restarted; keep queued work eligible for the next scan."""
+
+
 def api(action, **params):
     payload = json.dumps({'action': action, 'version': 6, 'params': params}).encode()
     request = urllib.request.Request('http://127.0.0.1:8765', data=payload,
                                      headers={'Content-Type': 'application/json'})
     # Never route local vocabulary through an HTTP proxy.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    response = json.loads(opener.open(request, timeout=5).read())
+    try:
+        with opener.open(request, timeout=5) as result:
+            response = json.load(result)
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+        raise AnkiUnavailable(str(exc)) from exc
     if response.get('error'):
         raise RuntimeError(response['error'])
     return response['result']
@@ -268,8 +281,14 @@ def sync(db, now, call=api):
             count += 1
         db.execute('UPDATE words SET note_id=? WHERE word=?', (note_id, word))
         db.commit()
-    attach_audio(db, now, call)
-    enrich(db, now, call)
+    # Scan history every five minutes, but finish ready work in this scan.
+    # Each batch remains sequential; failed items get a retry time and leave it.
+    while db.execute("""SELECT 1 FROM words WHERE note_id IS NOT NULL AND
+            ((audio_done=0 AND audio_retry_at<=?) OR (enriched=0 AND retry_at<=?))
+            LIMIT 1""", (now, now)).fetchone():
+        attach_audio(db, now, call)
+        enrich(db, now, call)
+        time.sleep(0.3)
     return count
 
 

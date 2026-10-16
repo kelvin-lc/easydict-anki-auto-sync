@@ -63,5 +63,38 @@ class SyncTests(unittest.TestCase):
                              ('gas', 123, 0))
 
 
+class BacklogTests(unittest.TestCase):
+    def test_one_scan_finishes_more_than_three_queued_notes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = sync.connect(pathlib.Path(directory) / 'queue.sqlite3')
+            for i in range(7):
+                db.execute('INSERT INTO words(word,meaning,seen,note_id) VALUES (?,?,?,?)',
+                           ('word'+str(i), '释义', 1, 100+i))
+            db.commit()
+            def anki(action, **params):
+                if action == 'getActiveProfile': return sync.PROFILE
+                if action == 'modelNames': return [sync.MODEL]
+                if action == 'modelFieldNames': return sync.RICH_FIELDS
+            def batch(db, now, call, **kwargs):
+                db.execute('UPDATE words SET audio_done=1,enriched=1 WHERE note_id IN (SELECT note_id FROM words WHERE enriched=0 LIMIT 3)')
+                db.commit()
+            with patch.object(sync, 'attach_audio', side_effect=batch), patch.object(sync, 'enrich'):
+                sync.sync(db, 100, anki)
+            self.assertEqual(db.execute('SELECT count(*) FROM words WHERE enriched=0 OR audio_done=0').fetchone()[0], 0)
+
+    def test_anki_disconnect_does_not_delay_work_for_an_hour(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = sync.connect(pathlib.Path(directory) / 'queue.sqlite3')
+            db.execute('INSERT INTO words(word,meaning,seen,note_id) VALUES (?,?,?,?)',
+                       ('gas', '气体', 1, 123))
+            db.commit()
+            def offline(action, **params):
+                raise sync.AnkiUnavailable('connection refused')
+            for operation in (sync.attach_audio, sync.enrich):
+                with self.assertRaises(sync.AnkiUnavailable):
+                    operation(db, 100, offline)
+            self.assertEqual(db.execute('SELECT enriched,audio_done,retry_at,audio_retry_at FROM words').fetchone(),
+                             (0, 0, 0, 0))
+
 if __name__ == '__main__':
     unittest.main()

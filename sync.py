@@ -30,37 +30,78 @@ FFMPEG = os.environ.get('EASYDICT_ANKI_FFMPEG') or shutil.which('ffmpeg')
 if POLL_SECONDS < 60:
     raise ValueError('EASYDICT_ANKI_POLL_SECONDS must be at least 60')
 RICH_FIELDS = ['Phonetic', 'Definition', 'Forms', 'Examples', 'Related', 'Source', 'Audio']
-CSS = '''
-.card { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
- font-size: 20px; line-height: 1.65; text-align: left; color: #242b32; background: #faf9f6; margin: 0; padding: 28px 22px; }
-.entry { max-width: 660px; margin: 0 auto; overflow-wrap: anywhere; }
-.word { font-family: Georgia, "Times New Roman", serif; font-size: 44px; line-height: 1.18; font-weight: 600; margin: 12px 0; }
-.phonetic { color: #596570; font-size: 17px; margin: 8px 0 22px; }
-.phonetic span { display: inline-block; margin-right: 20px; }
-#answer { border: 0; border-top: 1px solid #d6d9d6; margin: 24px 0; }
-.sense { margin: 10px 0; }
-.pos { font-size: 16px; color: #35685f; margin-right: 10px; font-style: italic; }
-h2 { font-size: 14px; font-weight: 600; color: #596570; margin: 27px 0 8px; }
-.forms, .related { font-size: 17px; }
-.example { margin: 12px 0 18px; }
-.translation { font-size: 17px; color: #596570; margin-top: 4px; }
-.source { font-size: 12px; color: #596570; margin-top: 30px; }
-.source a { color: inherit; text-underline-offset: 3px; }
+CSS = '''.card {
+  --paper: #faf9f6;
+  --ink: #242f2b;
+  --muted: #5b6962;
+  --accent: #35685f;
+  --rule: #d8dfd9;
+  --wash: #edf2ed;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-size: 20px;
+  line-height: 1.75;
+  text-align: left;
+  color: var(--ink);
+  background: var(--paper);
+  margin: 0;
+  padding: 40px 28px 64px;
+  -webkit-font-smoothing: antialiased;
+}
+.entry { max-width: 680px; margin: 0 auto; overflow-wrap: anywhere; }
+.word {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(36px, 7vw, 56px);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin: 12px 0 16px;
+}
+.phonetic { color: var(--muted); font-size: 16px; line-height: 1.8; }
+.phonetic span { display: inline-block; margin-right: 22px; }
+#answer { border: 0; border-top: 1px solid var(--rule); margin: 28px 0; }
+.sense { margin: 14px 0; }
+.pos { display: inline-block; font-size: 16px; color: var(--accent); font-style: italic; margin-right: 12px; }
+h2 { color: var(--muted); font-size: 14px; font-weight: 600; margin: 34px 0 12px; }
+.example { margin: 0 0 22px; }
+.example b { color: var(--accent); font-weight: 650; }
+.translation { color: var(--muted); font-size: 17px; margin-top: 6px; }
+.forms, .related { font-size: 17px; line-height: 1.9; margin: 12px 0 20px; }
+.extra { border-top: 1px solid var(--rule); margin-top: 26px; padding-top: 8px; }
+.extra + .extra { margin-top: 0; }
+summary { color: var(--muted); font-size: 15px; padding: 10px 0; cursor: pointer; }
+summary:hover { color: var(--accent); }
+.source { font-size: 12px; color: var(--muted); margin-top: 32px; }
+a { color: var(--accent); text-underline-offset: 4px; }
+.source a { color: inherit; }
+.replay-button { display: inline-flex; vertical-align: middle; margin-left: 6px; padding: 6px; }
+.replay-button svg { width: 36px; height: 36px; }
+.replay-button svg circle { fill: var(--wash); stroke: var(--rule); }
+.replay-button svg path { fill: var(--accent); }
+.replay-button:hover svg circle { stroke: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 ::selection { background: #cde4da; color: #152e27; }
-a:focus-visible { outline: 2px solid #35685f; outline-offset: 3px; }
-.nightMode.card { color: #e5e8e6; background: #202524; }
-.nightMode .phonetic, .nightMode h2, .nightMode .translation, .nightMode .source { color: #b3bfba; }
-.nightMode .pos { color: #9fd2bf; }
-.nightMode #answer { border-color: #4c5852; }
-@media (max-width: 480px) { .card { padding: 20px 16px; font-size: 19px; } .word { font-size: 36px; } }
+.nightMode.card, .night_mode.card {
+  --paper: #202724;
+  --ink: #e8ede9;
+  --muted: #b2c0b7;
+  --accent: #a2d2bf;
+  --rule: #44564b;
+  --wash: #2b3830;
+}
+@media (max-width: 480px) {
+  .card { padding: 24px 20px 40px; font-size: 18px; }
+  .phonetic { font-size: 15px; }
+  .translation, .forms, .related { font-size: 16px; }
+  #answer { margin: 24px 0; }
+}
 '''
 FRONT = '<div class="entry"><div class="word">{{Word}} {{Audio}}</div>{{#Phonetic}}<div class="phonetic">{{Phonetic}}</div>{{/Phonetic}}</div>'
 BACK = '''{{FrontSide}}<div class="entry"><hr id="answer">
 {{#Definition}}<div class="definitions">{{Definition}}</div>{{/Definition}}
 {{^Definition}}<div class="definitions">{{Meaning}}</div>{{/Definition}}
-{{#Forms}}<h2>词形变化</h2><div class="forms">{{Forms}}</div>{{/Forms}}
 {{#Examples}}<h2>例句</h2>{{Examples}}{{/Examples}}
-{{#Related}}<h2>近义词</h2><div class="related">{{Related}}</div>{{/Related}}
+{{#Forms}}<details class="extra"><summary>词形变化</summary><div class="forms">{{Forms}}</div></details>{{/Forms}}
+{{#Related}}<details class="extra"><summary>近义词</summary><div class="related">{{Related}}</div></details>{{/Related}}
 {{#Source}}<div class="source">{{Source}}</div>{{/Source}}</div>'''
 
 

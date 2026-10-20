@@ -32,7 +32,10 @@ if POLL_SECONDS < 60:
 RICH_FIELDS = ['Phonetic', 'Definition', 'Forms', 'Examples', 'Related', 'Source', 'Audio',
                'Family', 'Roots', 'Mnemonic']
 WORD = re.compile(r"[a-z]+(?:[-'][a-z]+)*")
-CSS = '''.card {
+# Bump when CSS or templates change; existing note types are refreshed once.
+STYLE_VERSION = 'easydict-card-v3'
+CSS = '''/* ''' + STYLE_VERSION + ''' */
+.card {
   --paper: #faf9f6;
   --ink: #242f2b;
   --muted: #5b6962;
@@ -40,47 +43,49 @@ CSS = '''.card {
   --rule: #d8dfd9;
   --wash: #edf2ed;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-  font-size: 20px;
-  line-height: 1.75;
+  font-size: 17px;
+  line-height: 1.6;
   text-align: left;
   color: var(--ink);
   background: var(--paper);
   margin: 0;
-  padding: 40px 28px 64px;
+  padding: 20px 24px 40px;
   -webkit-font-smoothing: antialiased;
 }
 .entry { max-width: 680px; margin: 0 auto; overflow-wrap: anywhere; }
 .word {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(36px, 7vw, 56px);
+  font-size: clamp(28px, 5vw, 36px);
   font-weight: 500;
   line-height: 1.2;
-  letter-spacing: -0.025em;
-  margin: 12px 0 16px;
+  letter-spacing: -0.02em;
+  margin: 4px 0 4px;
 }
-.phonetic { color: var(--muted); font-size: 16px; line-height: 1.8; }
-.phonetic span { display: inline-block; margin-right: 22px; }
-#answer { border: 0; border-top: 1px solid var(--rule); margin: 28px 0; }
-.sense { margin: 14px 0; }
-.pos { display: inline-block; font-size: 16px; color: var(--accent); font-style: italic; margin-right: 12px; }
-h2 { color: var(--muted); font-size: 14px; font-weight: 600; margin: 34px 0 12px; }
-.example { margin: 0 0 22px; }
+.phonetic { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.phonetic span { display: inline-block; margin-right: 16px; }
+#answer { border: 0; border-top: 1px solid var(--rule); margin: 14px 0 10px; }
+.sense { margin: 4px 0; }
+.pos { display: inline-block; font-size: 14px; color: var(--accent); font-style: italic; margin-right: 8px; }
+h2, summary { color: var(--muted); font-size: 13px; font-weight: 600; }
+h2 { margin: 16px 0 6px; }
+.example { margin: 0 0 10px; font-size: 16px; }
 .example b { color: var(--accent); font-weight: 650; }
-.translation { color: var(--muted); font-size: 17px; margin-top: 6px; }
-.forms, .related, .family { font-size: 17px; line-height: 1.9; margin: 12px 0 20px; }
-.memory { margin: 22px 0 6px; padding: 10px 16px; border-left: 3px solid var(--accent);
-  background: var(--wash); border-radius: 0 8px 8px 0; font-size: 17px; line-height: 1.7; }
-.memory div + div { margin-top: 6px; }
-.label { display: inline-block; min-width: 2.6em; color: var(--accent); font-size: 14px; font-weight: 600; }
-.extra { border-top: 1px solid var(--rule); margin-top: 26px; padding-top: 8px; }
+.translation { color: var(--muted); font-size: 14px; margin-top: 1px; }
+.forms, .related, .family { font-size: 15px; line-height: 1.7; margin: 2px 0 8px; }
+.forms .translation, .family .translation, .related .translation { display: inline; }
+.memory { margin: 12px 0 4px; padding: 6px 12px; border-left: 3px solid var(--accent);
+  background: var(--wash); border-radius: 0 6px 6px 0; font-size: 15px; line-height: 1.6; }
+.memory div + div { margin-top: 2px; }
+.label { display: inline-block; min-width: 2.6em; color: var(--accent); font-size: 13px; font-weight: 600; }
+.extra { border-top: 1px solid var(--rule); margin-top: 10px; }
 .extra + .extra { margin-top: 0; }
-summary { color: var(--muted); font-size: 15px; padding: 10px 0; cursor: pointer; }
+summary { padding: 6px 0 2px; cursor: pointer; }
 summary:hover { color: var(--accent); }
-.source { font-size: 12px; color: var(--muted); margin-top: 32px; }
+.source { font-size: 12px; color: var(--muted); margin-top: 16px; }
 a { color: var(--accent); text-underline-offset: 4px; }
 .source a { color: inherit; }
-.replay-button { display: inline-flex; vertical-align: middle; margin-left: 6px; padding: 6px; }
-.replay-button svg { width: 36px; height: 36px; }
+.replay-button { display: inline-flex; vertical-align: middle; margin-left: 4px; padding: 4px; }
+.replay-button svg { width: 26px; height: 26px; }
 .replay-button svg circle { fill: var(--wash); stroke: var(--rule); }
 .replay-button svg path { fill: var(--accent); }
 .replay-button:hover svg circle { stroke: var(--accent); }
@@ -95,10 +100,8 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outli
   --wash: #2b3830;
 }
 @media (max-width: 480px) {
-  .card { padding: 24px 20px 40px; font-size: 18px; }
-  .phonetic { font-size: 15px; }
-  .translation, .forms, .related, .family, .memory { font-size: 16px; }
-  #answer { margin: 24px 0; }
+  .card { padding: 14px 16px 28px; font-size: 16px; }
+  .example { font-size: 15px; }
 }
 '''
 FRONT = '<div class="entry"><div class="word">{{Word}} {{Audio}}</div>{{#Phonetic}}<div class="phonetic">{{Phonetic}}</div>{{/Phonetic}}</div>'
@@ -107,10 +110,23 @@ BACK = '''{{FrontSide}}<div class="entry"><hr id="answer">
 {{^Definition}}<div class="definitions">{{Meaning}}</div>{{/Definition}}
 {{#Roots}}<div class="memory"><div><span class="label">词根</span>{{Roots}}</div>{{#Mnemonic}}<div><span class="label">助记</span>{{Mnemonic}}</div>{{/Mnemonic}}</div>{{/Roots}}
 {{#Examples}}<h2>例句</h2>{{Examples}}{{/Examples}}
-{{#Forms}}<details class="extra"><summary>词形变化</summary><div class="forms">{{Forms}}</div></details>{{/Forms}}
-{{#Family}}<details class="extra"><summary>同根词</summary><div class="family">{{Family}}</div></details>{{/Family}}
-{{#Related}}<details class="extra"><summary>近义词</summary><div class="related">{{Related}}</div></details>{{/Related}}
+{{#Forms}}<details class="extra" open><summary>词形变化</summary><div class="forms">{{Forms}}</div></details>{{/Forms}}
+{{#Family}}<details class="extra" open><summary>同根词</summary><div class="family">{{Family}}</div></details>{{/Family}}
+{{#Related}}<details class="extra" open><summary>近义词</summary><div class="related">{{Related}}</div></details>{{/Related}}
 {{#Source}}<div class="source">{{Source}}</div>{{/Source}}</div>'''
+
+
+def fetch_json(service, request, timeout):
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode('utf-8', 'replace')
+        raise RuntimeError(f'{service} HTTP {exc.code}: {clip(body, 200)}') from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f'{service} unreachable: {exc.reason}') from exc
+    except ValueError as exc:
+        raise RuntimeError(f'{service} returned non-JSON: {exc}') from exc
 
 
 def dictionary_fields(word):
@@ -125,15 +141,16 @@ def dictionary_fields(word):
     params = dict(q=word, le='en', client='web', t=t, sign=sign, keyfrom='webdict')
     request = urllib.request.Request('https://dict.youdao.com/jsonapi_s?doctype=json&jsonversion=4',
                                     data=urllib.parse.urlencode(params).encode())
-    with urllib.request.urlopen(request, timeout=12) as response:
-        data = json.load(response)
-    return render_dictionary(data, word)
+    return render_dictionary(fetch_json('Youdao', request, 12), word)
 
 
 def render_dictionary(data, word):
-    entry = (data.get('ec') or {}).get('word') or {}
+    if not isinstance(data.get('ec'), dict):
+        # Unknown words also lack "ec"; the key list shows whether the format changed.
+        raise ValueError(f'Youdao response has no "ec" entry (keys: {", ".join(sorted(data)) or "none"})')
+    entry = data['ec'].get('word') or {}
     if not entry.get('trs'):
-        raise ValueError('No dictionary definitions')
+        raise ValueError('Youdao entry has no definitions ("ec.word.trs")')
     returned = entry.get('return-phrase', word).strip().lower()
     if returned != word:
         raise ValueError('Dictionary returned a different word')
@@ -144,7 +161,7 @@ def render_dictionary(data, word):
     definitions = ''.join(f'<div class="sense"><span class="pos">{esc(item.get("pos", ""))}</span>'
                           f'{esc("；".join(item["tran"].split("；")[:4]))}</div>'
                           for item in entry['trs'] if item.get('tran') and not item['tran'].startswith('【名】'))
-    forms = '<br>'.join(f'{esc(item["wf"].get("name", ""))}：{esc(item["wf"]["value"])}'
+    forms = ' · '.join(f'<span class="translation">{esc(item["wf"].get("name", ""))}</span> {esc(item["wf"]["value"])}'
                        for item in entry.get('wfs', []) if (item.get('wf') or {}).get('value'))
     examples = []
     for item in (data.get('blng_sents_part') or {}).get('sentence-pair', [])[:2]:
@@ -225,10 +242,13 @@ def clip(text, limit):
 
 def parse_memory(content, word):
     match = re.search(r'\{.*\}', re.sub(r'(?s)<think>.*?</think>', '', content), re.S)
-    data = json.loads(match[0]) if match else {}
+    try:
+        data = json.loads(match[0]) if match else {}
+    except ValueError as exc:
+        raise ValueError(f'LLM returned invalid JSON: {clip(content, 120)}') from exc
     roots, mnemonic = clip(data.get('roots'), 60), clip(data.get('mnemonic'), 45)
     if not roots and not mnemonic:
-        raise ValueError('LLM returned no memory hints')
+        raise ValueError(f'LLM returned no memory hints: {clip(content, 120)}')
     lemma = str(data.get('lemma') or word).strip().lower()
     return dict(lemma=lemma if WORD.fullmatch(lemma) else word,
                 Roots=html.escape(roots), Mnemonic=html.escape(mnemonic))
@@ -240,8 +260,11 @@ def memory_fields(word, gloss, config):
         {'role': 'user', 'content': f'单词：{word}\n释义参考：{gloss}'}]}
     request = urllib.request.Request(config['url'], data=json.dumps(body).encode(), headers={
         'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config['key']})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        content = json.load(response)['choices'][0]['message']['content']
+    data = fetch_json('LLM', request, 60)
+    try:
+        content = data['choices'][0]['message']['content']
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f'LLM response format unexpected: {clip(json.dumps(data, ensure_ascii=False), 200)}') from exc
     return parse_memory(content, word)
 
 
@@ -355,10 +378,10 @@ def connect(path):
         if name not in columns:
             db.execute(f'ALTER TABLE words ADD COLUMN {name} {definition}')
     db.execute('CREATE TABLE IF NOT EXISTS aliases (word TEXT PRIMARY KEY, lemma TEXT NOT NULL)')
-    if db.execute('PRAGMA user_version').fetchone()[0] < 2:
-        # Version 2 adds the word family and shorter definitions; refetch cached entries once.
+    if db.execute('PRAGMA user_version').fetchone()[0] < 3:
+        # Bump when render_dictionary output changes; cached entries are refetched once.
         db.execute('UPDATE words SET rich_json=NULL, enriched=0, retry_at=0')
-        db.execute('PRAGMA user_version=2')
+        db.execute('PRAGMA user_version=3')
     db.commit()
     return db
 
@@ -367,10 +390,19 @@ def read_history():
     raw = subprocess.run(['/usr/bin/defaults', 'read', 'com.izual.Easydict',
                           'EZConfiguration_kQueryHistory'], capture_output=True, timeout=5)
     if raw.returncode:
-        raise RuntimeError('Easydict history unavailable')
+        raise RuntimeError('Easydict history unavailable: preference "EZConfiguration_kQueryHistory" '
+                           f'not readable ({raw.stderr.decode(errors="replace").strip()})')
     xml = subprocess.run(['/usr/bin/plutil', '-convert', 'xml1', '-o', '-', '--', '-'],
                          input=raw.stdout, capture_output=True, check=True, timeout=5).stdout
-    return [json.loads(item) for item in plistlib.loads(xml)]
+    try:
+        records = [json.loads(item) for item in plistlib.loads(xml)]
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f'Easydict history format changed: entries are not JSON strings ({exc})') from exc
+    expected = {'queryText', 'queryFromLanguage', 'translatedResult'}
+    if records and not any(isinstance(r, dict) and expected <= set(r) for r in records):
+        found = sorted(records[0]) if isinstance(records[0], dict) else type(records[0]).__name__
+        raise RuntimeError(f'Easydict history format changed: expected {sorted(expected)}, found {found}')
+    return records
 
 
 def collect(db, records, now):
@@ -411,8 +443,25 @@ def api(action, **params):
     return response['result']
 
 
+_reported = {}
+
+
+def report(topic, problem):
+    """Log a persistent dependency problem when it appears, changes, or clears."""
+    if _reported.get(topic) == problem:
+        return
+    if problem:
+        logging.warning('%s', problem)
+    elif topic in _reported:
+        logging.info('%s recovered', topic)
+    _reported[topic] = problem
+
+
 def sync(db, now, call=api, config=llm_config):
     config = config()
+    report('LLM settings', None if config else
+           'Memory hints disabled: Easydict DeepSeek settings (EZDeepSeekEndPointKey, '
+           'EZDeepSeekAPIKey, EZDeepSeekModelKey) not found and EASYDICT_ANKI_LLM_* not set')
     pending = db.execute('SELECT word, meaning FROM words WHERE note_id IS NULL AND meaning != ? AND seen <= ?', ('', now - 15)).fetchall()
     needs_enrichment = db.execute('SELECT 1 FROM words WHERE note_id IS NOT NULL AND enriched=0 AND retry_at<=? LIMIT 1', (now,)).fetchone()
     needs_audio = db.execute('SELECT 1 FROM words WHERE note_id IS NOT NULL AND audio_done=0 AND audio_retry_at<=? LIMIT 1', (now,)).fetchone()
@@ -428,8 +477,10 @@ def sync(db, now, call=api, config=llm_config):
              cardTemplates=[{'Name': '英文 → 中文', 'Front': '{{Word}}',
                              'Back': '{{FrontSide}}<hr id="answer"><div class="meaning">{{Meaning}}</div>'}])
         setup_model(call)
-    elif set(RICH_FIELDS) - set(call('modelFieldNames', modelName=MODEL)):
+    elif (set(RICH_FIELDS) - set(call('modelFieldNames', modelName=MODEL))
+          or STYLE_VERSION not in (call('modelStyling', modelName=MODEL) or {}).get('css', '')):
         setup_model(call)
+        logging.info('Updated card style to %s', STYLE_VERSION)
     count = 0
     for word, meaning in pending:
         note_id = find_note(call, word)
@@ -467,7 +518,7 @@ def main():
     except BlockingIOError:
         return
     logging.basicConfig(filename=ROOT / 'sync.log', level=logging.INFO,
-                        format='%(asctime)s %(message)s')
+                        format='%(asctime)s %(levelname)s %(message)s')
     db = connect(ROOT / 'queue.sqlite3')
     last_error = None
     while True:

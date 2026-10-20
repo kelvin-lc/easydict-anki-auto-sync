@@ -1,4 +1,8 @@
+import io
 import pathlib
+import plistlib
+import subprocess
+import urllib.error
 import sqlite3
 import tempfile
 import unittest
@@ -176,6 +180,9 @@ class MemoryTests(unittest.TestCase):
         definition = sync.render_dictionary(data, 'reserve')['Definition']
         self.assertIn('一；二；三；四</div>', definition)
         self.assertNotIn('人名', definition)
+        forms = sync.render_dictionary({'ec': {'word': {'trs': [{'tran': '保留'}], 'wfs': [
+            {'wf': {'name': '复数', 'value': 'decks'}}, {'wf': {'name': '过去式', 'value': 'decked'}}]}}}, 'deck')['Forms']
+        self.assertEqual(forms, '<span class="translation">复数</span> decks · <span class="translation">过去式</span> decked')
 
     def test_family_lists_stem_and_related_words(self):
         data = {'ec': {'word': {'trs': [{'pos': 'n.', 'tran': '仪式'}]}},
@@ -185,6 +192,37 @@ class MemoryTests(unittest.TestCase):
         self.assertTrue(family.startswith('词干：rite<br>'))
         self.assertIn('ritually <span class="translation">仪式上地</span>', family)
         self.assertNotIn('依据', family)
+
+
+
+class DependencyLogTests(unittest.TestCase):
+    def test_persistent_problem_is_logged_once_and_recovery_noted(self):
+        sync._reported.clear()
+        with self.assertLogs(level='INFO') as logs:
+            sync.report('LLM settings', 'missing')
+            sync.report('LLM settings', 'missing')
+            sync.report('LLM settings', None)
+        self.assertEqual([r.getMessage() for r in logs.records], ['missing', 'LLM settings recovered'])
+
+    def test_errors_name_the_changed_interface(self):
+        with self.assertRaisesRegex(ValueError, 'no "ec" entry.*keys: input, meta'):
+            sync.render_dictionary({'input': 'x', 'meta': {}}, 'x')
+        with self.assertRaisesRegex(ValueError, 'invalid JSON: {bad'):
+            sync.parse_memory('{bad}', 'x')
+
+    def test_http_errors_keep_service_and_reason(self):
+        error = urllib.error.HTTPError('https://llm', 401, 'Unauthorized', {}, io.BytesIO(b'{"error":"invalid key"}'))
+        with patch('urllib.request.urlopen', side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, 'LLM HTTP 401: {"error":"invalid key"}'):
+                sync.fetch_json('LLM', None, 1)
+
+    def test_history_format_change_is_explicit(self):
+        changed = plistlib.dumps(['{"text": "deck"}'])
+        def run(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, changed, b'')
+        with patch('subprocess.run', side_effect=run):
+            with self.assertRaisesRegex(RuntimeError, "history format changed.*found \\['text'\\]"):
+                sync.read_history()
 
 
 if __name__ == '__main__':

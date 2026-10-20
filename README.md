@@ -11,10 +11,12 @@ This is an independent bridge, not an official Easydict or Anki add-on. [AnkiCon
 ### 效果
 
 - 只收录 Easydict 历史中的英文单词，跳过短语、整句及无中文释义的记录；同一单词去重。
-- 正面显示单词、英美音标和播放按钮；背面显示分词性释义、词形变化、最多两条双语例句及近义词。词典未返回的内容会留空。
+- 正面显示单词、英美音标和播放按钮；背面显示分词性释义（每个词性最多四项，略去人名）、词根与助记、最多两条双语例句，以及折叠的词形变化、同根词和近义词。词典未返回的内容会留空。
+- 若 Easydict 中配置了 DeepSeek（或其他 OpenAI 兼容）服务，脚本复用其 API 地址、密钥和模型，为每个词生成一行词根拆解和一句助记，无需另行配置。可用环境变量 `EASYDICT_ANKI_LLM_URL`、`EASYDICT_ANKI_LLM_KEY`、`EASYDICT_ANKI_LLM_MODEL` 覆盖。未配置时跳过这一项。词源由模型生成，可能不准确。
+- 只是屈折变化、没有独立常用词义的词（如 reserving、rituals）会归并到原形：原形尚无卡片时改名并保留复习进度，已有卡片时删除重复卡。glasses、better 等有独立词义的词保持独立。
 - Mac 的系统语音为每个单词生成一次 MP3，保存为 Anki 媒体附件。桌面端打开正面自动播放一次，AnkiWeb 同步后可点击播放；浏览器可能限制自动播放。
 - 详细词条读取 Easydict 使用的有道词典接口。词条请求失败时先保留简短释义，每小时重试。音频生成失败也每小时重试。Anki 关闭或重启导致的连接中断会在下一轮扫描重试，不会额外等待一小时。
-- 读取查词历史、保存队列、生成音频都在本机完成。请求详细词条时，该英文单词会发给有道。脚本不读取 AnkiWeb 账号或密码，也不直接连接 AnkiWeb；云端由 Anki 自身同步。
+- 读取查词历史、保存队列、生成音频都在本机完成。请求详细词条时，该英文单词会发给有道；生成词根与助记时，单词和简短释义会发给你在 Easydict 中配置的模型服务。脚本不读取 AnkiWeb 账号或密码，也不直接连接 AnkiWeb；云端由 Anki 自身同步。
 
 ### 从零安装（macOS）
 
@@ -101,13 +103,13 @@ git pull --ff-only
 python3 install.py
 ```
 
-**仅 `git pull` 不会更新后台运行副本。** 安装器会备份旧脚本和启动配置，保留队列及音频，并重新启动服务。安装器记录了 Python 和 ffmpeg 的实际路径；如果升级或移除依赖后后台无法启动，也请重新执行安装命令。
+**仅 `git pull` 不会更新后台运行副本。** 安装器会备份旧脚本和启动配置，保留队列及音频，并重新启动服务。后台优先使用 macOS 自带的 `/usr/bin/python3`，避免 Homebrew 或 uv 升级后 Python 路径失效；安装器还记录了 ffmpeg 的实际路径。如果升级或移除依赖后后台无法启动，也请重新执行安装命令。
 
 可选参数：`--profile "你的 Anki 配置档名"`、`--deck "Easydict 生词"`、`--interval 300`（秒，最少 60）、`--voice Samantha`。指定配置档时名称必须与 Anki 完全一致。**更新时重新提供你使用过的自定义参数**，安装器不会自动沿用旧参数。此队列用于一个配置档；不要把更换配置档当成迁移卡片的方法。
 
 ### 可选：两按钮复习与新版样式
 
-若希望在 Mac 上只保留 Again / Good，参见 [两按钮插件安装和学习设置](anki_addon/README.md)。其中也说明了如何为已有卡片更新样式；主安装器不会自动安装该插件或覆盖已有模板。
+若希望在 Mac 上只保留 Again / Good，参见 [两按钮插件安装和学习设置](anki_addon/README.md)。其中也说明了已有卡片的样式如何更新；主安装器不会自动安装该插件。
 
 ### AnkiWeb 同步
 
@@ -166,7 +168,7 @@ Use `python3 install.py --profile "Your Anki profile"` if Anki is closed. Option
 
 After installation, close Terminal if desired. The service starts at macOS login and keeps running independently of Anki. With Anki open and the Mac awake, look up a new English word with a Chinese translation, wait 5–10 minutes, and check the automatically created `Easydict 生词` deck. Preview the card and click its audio button. Desktop-only use does not require an AnkiWeb account.
 
-The background process polls Easydict's saved query history, queues English words, creates Anki notes through AnkiConnect when Anki is available, and attaches a small MP3 generated once per word with macOS `say` and `ffmpeg`. Detailed definitions come from the same Youdao dictionary endpoint used by Easydict. Ready work is drained sequentially in batches of three, with a 0.3-second pause between batches, without waiting another polling interval. Anki connection interruptions leave tasks eligible for the next scan; dictionary and audio-generation failures retry after an hour. Sync using Anki desktop to make the cards and MP3s available on AnkiWeb.
+The background process polls Easydict's saved query history, queues English words, creates Anki notes through AnkiConnect when Anki is available, and attaches a small MP3 generated once per word with macOS `say` and `ffmpeg`. Detailed definitions come from the same Youdao dictionary endpoint used by Easydict. If Easydict has a DeepSeek (OpenAI-compatible) service configured, the script reuses its endpoint, key, and model to add a one-line word-root breakdown and a short mnemonic (override with `EASYDICT_ANKI_LLM_URL`, `_KEY`, `_MODEL`); the word and a short gloss are sent to that service. Pure inflections such as `reserving` are folded into their lemma. The service prefers macOS's `/usr/bin/python3` so Python upgrades do not break it. Ready work is drained sequentially in batches of three, with a 0.3-second pause between batches, without waiting another polling interval. Anki connection interruptions leave tasks eligible for the next scan; dictionary and audio-generation failures retry after an hour. Sync using Anki desktop to make the cards and MP3s available on AnkiWeb.
 
 ## License and attribution
 

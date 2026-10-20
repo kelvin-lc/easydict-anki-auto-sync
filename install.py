@@ -30,6 +30,14 @@ def active_profile():
     return result.get('result') if not result.get('error') else None
 
 
+def stable_python():
+    """Prefer macOS's own Python 3.9+: Homebrew/uv upgrades can remove versioned paths."""
+    system = '/usr/bin/python3'
+    check = subprocess.run([system, '-c', 'import sys; sys.exit(sys.version_info < (3, 9))'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return system if check.returncode == 0 else sys.executable
+
+
 def main():
     parser = argparse.ArgumentParser(description='Install Easydict → Anki automatic sync')
     parser.add_argument('--profile', help='Anki profile name; detected from running Anki when omitted')
@@ -75,7 +83,7 @@ def main():
     }
     spec = {
         'Label': LABEL,
-        'ProgramArguments': [sys.executable, str(APP_DIR / 'sync.py')],
+        'ProgramArguments': [stable_python(), str(APP_DIR / 'sync.py')],
         'EnvironmentVariables': environment,
         'RunAtLoad': True,
         'KeepAlive': True,

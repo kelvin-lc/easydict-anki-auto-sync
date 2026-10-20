@@ -11,7 +11,7 @@ This is an independent bridge, not an official Easydict or Anki add-on. [AnkiCon
 ### 效果
 
 - 只收录 Easydict 历史中的英文单词，跳过短语、整句及无中文释义的记录；同一单词去重。
-- 正面显示单词、英美音标和播放按钮；背面显示分词性释义（每个词性最多四项，略去人名）、词根与助记、最多两条双语例句，以及折叠的词形变化、同根词和近义词。词典未返回的内容会留空。
+- 正面显示单词、英美音标和播放按钮；背面显示分词性释义（每个词性最多四项，略去人名）、词根与助记、最多两条双语例句，以及默认展开、可收起的词形变化、同根词和近义词。词典未返回的内容会留空。
 - 若 Easydict 中配置了 DeepSeek（或其他 OpenAI 兼容）服务，脚本复用其 API 地址、密钥和模型，为每个词生成一行词根拆解和一句助记，无需另行配置。可用环境变量 `EASYDICT_ANKI_LLM_URL`、`EASYDICT_ANKI_LLM_KEY`、`EASYDICT_ANKI_LLM_MODEL` 覆盖。未配置时跳过这一项。词源由模型生成，可能不准确。
 - 只是屈折变化、没有独立常用词义的词（如 reserving、rituals）会归并到原形：原形尚无卡片时改名并保留复习进度，已有卡片时删除重复卡。glasses、better 等有独立词义的词保持独立。
 - Mac 的系统语音为每个单词生成一次 MP3，保存为 Anki 媒体附件。桌面端打开正面自动播放一次，AnkiWeb 同步后可点击播放；浏览器可能限制自动播放。
@@ -117,13 +117,13 @@ python3 install.py
 
 ### 升级 Easydict 或 Anki 之后
 
-脚本依赖以下几处 Easydict 和 Anki 的细节。其中有些是内部格式，没有对外承诺保持兼容；一旦变化，脚本不会弹出提示，只会在日志中记录，或直接跳过该步骤。本地队列会保留已收集的单词，修复后自动补上。
+脚本依赖以下几处 Easydict 和 Anki 的细节。其中有些是内部格式，没有对外承诺保持兼容；一旦变化，脚本不会弹出提示，但会在 `sync.log` 中写一条 `WARNING`，说明是哪个服务、哪个字段或接口出了问题。持续存在的问题只记一次，恢复后记一条 `recovered`。本地队列会保留已收集的单词，修复后自动补上。
 
 | 依赖 | 来源 | 若升级后发生变化 |
 | --- | --- | --- |
-| 查询历史：`com.izual.Easydict` 偏好中的 `EZConfiguration_kQueryHistory`，以及条目字段 `queryText`、`queryFromLanguage`、`translatedResult` | Easydict 内部存储格式 | 不再收集新词；日志出现 `Easydict history unavailable` 或长时间没有 `Imported` |
-| DeepSeek 服务配置：`EZDeepSeekEndPointKey`、`EZDeepSeekAPIKey`、`EZDeepSeekModelKey` | Easydict 内部存储格式 | 新卡没有“词根 / 助记”，日志中没有相应记录；可改用 `EASYDICT_ANKI_LLM_*` 环境变量 |
-| 有道 `jsonapi_s` 接口及签名算法 | 有道（由 Easydict 源码移植） | 只有简短释义；日志出现 `Dictionary enrichment deferred`，每小时重试 |
+| 查询历史：`com.izual.Easydict` 偏好中的 `EZConfiguration_kQueryHistory`，以及条目字段 `queryText`、`queryFromLanguage`、`translatedResult` | Easydict 内部存储格式 | 不再收集新词；日志出现 `Easydict history unavailable` 或 `Easydict history format changed` |
+| DeepSeek 服务配置：`EZDeepSeekEndPointKey`、`EZDeepSeekAPIKey`、`EZDeepSeekModelKey` | Easydict 内部存储格式 | 新卡没有“词根 / 助记”；日志出现 `Memory hints disabled`，或 `Memory hints deferred` 附带 `LLM HTTP 401` 等原因；可改用 `EASYDICT_ANKI_LLM_*` 环境变量 |
+| 有道 `jsonapi_s` 接口及签名算法 | 有道（由 Easydict 源码移植） | 只有简短释义；日志出现 `Dictionary enrichment deferred`，附带 `Youdao HTTP …` 或 `no "ec" entry (keys: …)`，每小时重试 |
 | AnkiConnect API version 6，地址 `127.0.0.1:8765` | AnkiConnect 插件 | 新词留在队列中；日志出现连接或 AnkiConnect 错误 |
 | 复习界面钩子 `reviewer_will_init_answer_buttons`、`reviewer_will_answer_card` | Anki（仅两按钮插件） | Anki 启动时提示插件错误，复习界面恢复为四个按钮 |
 | `/usr/bin/say`、`/usr/bin/defaults`、`/usr/bin/python3`、`ffmpeg` | macOS 与 Homebrew | 没有音频，或后台无法启动；重新运行 `python3 install.py` |
@@ -133,10 +133,10 @@ python3 install.py
 1. 在 Easydict 查一个从未查过的英文单词，保持 Anki 打开，等待 5～10 分钟。
 2. Anki 中出现该单词的新卡，背面有释义、词根和助记，播放按钮能发声。
 3. 复习时仍只有 Again / Good 两个按钮。
-4. 若有缺失，按上表查看 `sync.log` 中对应的记录：
+4. 若有缺失，按上表查看 `sync.log` 中的警告：
 
 ```bash
-tail -n 30 "$HOME/Library/Application Support/EasydictAnkiSync/sync.log"
+grep WARNING "$HOME/Library/Application Support/EasydictAnkiSync/sync.log" | tail -n 20
 ```
 
 ### 暂停、卸载和排错
@@ -196,7 +196,7 @@ The background process polls Easydict's saved query history, queues English word
 
 ### After upgrading Easydict or Anki
 
-The script relies on details that are not public APIs: Easydict's query-history preference key (`EZConfiguration_kQueryHistory` with `queryText`, `queryFromLanguage`, `translatedResult`), its DeepSeek preference keys (`EZDeepSeekEndPointKey`, `EZDeepSeekAPIKey`, `EZDeepSeekModelKey`), Youdao's `jsonapi_s` endpoint and signature, AnkiConnect API version 6, and, for the two-button add-on, Anki's `reviewer_will_init_answer_buttons` and `reviewer_will_answer_card` hooks. If one changes, the affected step stops without a notification, while queued words are kept. After an upgrade, look up a new word, wait 5–10 minutes with Anki open, and confirm that the card arrives with definitions, roots, a mnemonic, audio, and only two answer buttons. Otherwise check `sync.log`.
+The script relies on details that are not public APIs: Easydict's query-history preference key (`EZConfiguration_kQueryHistory` with `queryText`, `queryFromLanguage`, `translatedResult`), its DeepSeek preference keys (`EZDeepSeekEndPointKey`, `EZDeepSeekAPIKey`, `EZDeepSeekModelKey`), Youdao's `jsonapi_s` endpoint and signature, AnkiConnect API version 6, and, for the two-button add-on, Anki's `reviewer_will_init_answer_buttons` and `reviewer_will_answer_card` hooks. If one changes, the affected step stops without a notification, but `sync.log` records a `WARNING` naming the service and the field or endpoint involved (persistent problems are logged once, with a `recovered` line when fixed); queued words are kept. After an upgrade, look up a new word, wait 5–10 minutes with Anki open, and confirm that the card arrives with definitions, roots, a mnemonic, audio, and only two answer buttons. Otherwise check `sync.log`.
 
 ## License and attribution
 
